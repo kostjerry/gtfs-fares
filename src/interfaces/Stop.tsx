@@ -1,6 +1,6 @@
 export default interface Stop {
-  stopId: string;
-  stopLat: number;
-  stopLon: number;
-  stopName: String;
+  stop_id: string;
+  stop_name: string;
+  stop_lat: number;
+  stop_lon: number;
 }
