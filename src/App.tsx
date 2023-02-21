@@ -1,10 +1,9 @@
 import React, { useState } from "react";
-import JSZip, { JSZipObject } from "jszip";
 import FaresBuilder from "./components/FaresBuilder";
 import FileService from "./services/FileService";
-import Packet, { samplePacket } from "./interfaces/Packet";
 import ewayLogo from "./images/eway-logo.png";
 import "./App.scss";
+import GtfsParseService from "./services/GtfsParseService";
 
 enum AppMode {
   FILE_UPLOADING,
@@ -14,61 +13,17 @@ enum AppMode {
 function App() {
   const [isLoading, setIsLoading] = useState(false);
   const [mode, setMode] = useState(AppMode.FILE_UPLOADING);
+  const [packet, setPacket] = useState({});
   const requiredFileNames = ["stops.txt"];
 
   const handleFileUpload = (event: React.ChangeEvent<HTMLInputElement>) => {
     if (event.target.files) {
       setIsLoading(true);
-
-      if (event.target.files.length === 1) {
-        const zipFile = event.target.files[0];
-        processUploadedZip(zipFile);
-      } else {
-        const files = Array.from(event.target.files);
-        processUploadedFiles(files);
-      }
+      FileService.readFiles(event.target.files, processFilesPromises);
     }
   };
 
-  const processUploadedZip = (zipFile: Blob | File) => {
-    JSZip.loadAsync(zipFile).then(
-      (zip) => {
-        const files: JSZipObject[] = [];
-        zip.forEach((relativePath, file) => {
-          files.push(file);
-        });
-
-        const fileNames: string[] = [];
-        const filePromises = Promise.all(
-          files
-            .filter((file: JSZipObject) => file.name.indexOf(".txt") !== -1)
-            .map((file: JSZipObject) => {
-              fileNames.push(file.name);
-              return file.async("text");
-            })
-        );
-        processUploadedFilesPromises(filePromises, fileNames);
-      },
-      function (e) {
-        alert(e.message);
-      }
-    );
-  };
-
-  const processUploadedFiles = (files: File[]) => {
-    const fileNames: string[] = [];
-    const filePromises = Promise.all(
-      files
-        .filter((file: File) => file.name.indexOf(".txt") !== -1)
-        .map((file: File) => {
-          fileNames.push(file.name);
-          return FileService.readUploadedFileAsText(file);
-        })
-    );
-    processUploadedFilesPromises(filePromises, fileNames);
-  };
-
-  const processUploadedFilesPromises = (
+  const processFilesPromises = (
     filePromises: Promise<string[]>,
     fileNames: string[]
   ) => {
@@ -77,18 +32,15 @@ function App() {
       return;
     }
 
-    let packet: { [key: string]: any } = {};
+    let tmpPacket: { [key: string]: any } = {};
 
     filePromises.then((fileContents: string[]) => {
       fileContents.forEach((fileContent: string, fileIndex: number) => {
-        const fileNameWithoutExt = fileNames[fileIndex].substring(0, -4);
-        if (fileNameWithoutExt in samplePacket) {
-          packet[fileNameWithoutExt] = extractData(fileContent);
-        }
+        const fileNameWithoutExt = fileNames[fileIndex].slice(0, -4);
+        tmpPacket[fileNameWithoutExt] = GtfsParseService.fromGTFS(fileContent);
       });
 
-      console.log(packet as Packet);
-
+      setPacket(tmpPacket);
       setIsLoading(false);
       setMode(AppMode.FARES_BUILDER);
     });
@@ -115,10 +67,6 @@ function App() {
     }
   };
 
-  const extractData = (fileContent: string): {}[] => {
-    return [];
-  };
-
   return (
     <div className="gtfs-fares-builder-container">
       {isLoading && <div className="loader"></div>}
@@ -132,7 +80,9 @@ function App() {
         </div>
       )}
 
-      {mode === AppMode.FARES_BUILDER && <FaresBuilder></FaresBuilder>}
+      {mode === AppMode.FARES_BUILDER && (
+        <FaresBuilder packet={packet}></FaresBuilder>
+      )}
     </div>
   );
 }

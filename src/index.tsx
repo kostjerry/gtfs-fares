@@ -1,5 +1,4 @@
-import React from "react";
-import ReactDOM from "react-dom";
+import { createRoot } from "react-dom/client";
 import App from "./App";
 import FaresBuilder from "./components/FaresBuilder";
 
@@ -11,19 +10,14 @@ declare global {
 
 window.GtfsFaresBuilder = {
   mount: (props: any, container: any) => {
-    ReactDOM.render(<FaresBuilder {...props} />, container);
+    createRoot(container).render(<FaresBuilder {...props} />);
   },
   unmount: (container: any) => {
-    ReactDOM.unmountComponentAtNode(container);
+    createRoot(container).unmount();
   },
 };
 
 const root = document.getElementById("gtfs-fares-builder-root") as HTMLElement;
 if (root) {
-  ReactDOM.render(
-    <React.StrictMode>
-      <App />
-    </React.StrictMode>,
-    root
-  );
+  createRoot(root).render(<App />);
 }
